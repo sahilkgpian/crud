@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Integration</title>
+</head>
+<body>
+    <h1>Login</h1>
+    <form id="loginForm">
+        <label for="login_id">Email:</label>
+        <input type="email" id="login_id" name="login_id" required><br>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br>
+
+        <button type="button" onclick="authenticate()">Login</button>
+    </form>
+
+    <p id="loginMessage"></p>
+
+    <h1>Customer List</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Street</th>
+                <th>Address</th>
+                <th>City</th>
+                <th>State</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="customerList">
+            <!-- Customer data will be displayed here -->
+        </tbody>
+    </table>
+
+    <button onclick="loadCustomerList()">Refresh List</button>
+
+    <h1>Customer Management</h1>
+    <h2>Create Customer</h2>
+    <form id="createCustomerForm">
+        <!-- Input fields for creating a customer -->
+        <button type="button" onclick="createCustomer()">Create Customer</button>
+    </form>
+
+    <h2>Update Customer</h2>
+    <form id="updateCustomerForm">
+        <!-- Input fields for updating a customer -->
+        <button type="button" onclick="updateCustomer()">Update Customer</button>
+    </form>
+
+    <h2>Delete Customer</h2>
+    <form id="deleteCustomerForm">
+        <label for="customerUuid">Customer UUID:</label>
+        <input type="text" id="customerUuid" name="uuid" required><br>
+        <button type="button" onclick="deleteCustomer()">Delete Customer</button>
+    </form>
+
+    <p id="managementMessage"></p>
+
+    <script>
+        let bearerToken = null;
+        function authenticate() {
+            const loginForm = document.getElementById('loginForm');
+    const loginMessage = document.getElementById('loginMessage');
+   
+    const loginData = {
+        login_id: loginForm.login_id.value,
+        password: loginForm.password.value
+    };
+
+    // Make a POST request to the authentication API
+    fetch('https://qa2.sunbasedata.com/sunbase/portal/api/assignment_auth.jsp', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(loginData)
+    })
+    .then(response => {
+        if (response.status === 200) {
+            return response.json();
+        } else if (response.status === 401) {
+            throw new Error('Invalid Authorization');
+        } else {
+            throw new Error('Authentication Failed');
+        }
+    })
+    .then(data => {
+        // Store the bearer token for future API calls
+        bearerToken = data.token;
+        loginMessage.innerText = 'Authentication Successful';
+        loginMessage.style.color = 'green';
+
+        // Redirect to the Customer List page
+        window.location.href = 'customer_list.html';
+    })
+    .catch(error => {
+        loginMessage.innerText = error.message;
+        loginMessage.style.color = 'red';
+    });
+        }
+
+        // Function to load the customer list
+        function loadCustomerList() {
+            const customerList = document.getElementById('customerList');
+   
+    // Make a GET request to fetch the customer list
+    fetch('https://qa2.sunbasedata.com/sunbase/portal/api/assignment.jsp?cmd=get_customer_list', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${bearerToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 200) {
+            return response.json();
+        } else if (response.status === 401) {
+            throw new Error('Invalid Authorization');
+        } else {
+            throw new Error('Failed to fetch customer list');
+        }
+    })
+    .then(data => {
+        // Display the customer list in a table
+        customerList.innerHTML = ''; // Clear previous data
+        data.forEach(customer => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${customer.first_name}</td>
+                <td>${customer.last_name}</td>
+                <td>${customer.street}</td>
+                <td>${customer.address}</td>
+                <td>${customer.city}</td>
+                <td>${customer.state}</td>
+                <td>${customer.email}</td>
+                <td>${customer.phone}</td>
+                <td><button onclick="deleteCustomer('${customer.uuid}')">Delete</button></td>
+            `;
+            customerList.appendChild(row);
+        });
+    })
+    .catch(error => {
+        console.error(error);
+        alert(error.message);
+    });
+        }
+
+        // Function to create a new customer
+        function createCustomer() {
+             const createCustomerForm = document.getElementById('createCustomerForm');
+    const managementMessage = document.getElementById('managementMessage');
+   
+    const customerData = {
+        first_name: createCustomerForm.first_name.value,
+        last_name: createCustomerForm.last_name.value,
+        street: createCustomerForm.street.value,
+        address: createCustomerForm.address.value,
+        city: createCustomerForm.city.value,
+        state: createCustomerForm.state.value,
+        email: createCustomerForm.email.value,
+        phone: createCustomerForm.phone.value
+    };
+
+    // Make a POST request to create a new customer
+    fetch('https://qa2.sunbasedata.com/sunbase/portal/api/assignment.jsp?cmd=create', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${bearerToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(customerData)
+    })
+    .then(response => {
+        if (response.status === 201) {
+            managementMessage.innerText = 'Customer Successfully Created';
+            managementMessage.style.color = 'green';
+            createCustomerForm.reset();
+        } else if (response.status === 400) {
+            throw new Error('First Name or Last Name is missing');
+        } else if (response.status === 401) {
+            throw new Error('Invalid Authorization');
+        } else {
+            throw new Error('Failed to create customer');
+        }
+    })
+    .catch(error => {
+        console.error(error);
+        managementMessage.innerText = error.message;
+        managementMessage.style.color = 'red';
+    });
+        }
+
+        // Function to update a customer
+        function updateCustomer() {
+            // Update customer logic here
+        }
+
+        // Function to delete a customer
+        function deleteCustomer() {
+            const managementMessage = document.getElementById('managementMessage');
+
+    // Make a POST request to delete a customer by UUID
+    fetch(`https://qa2.sunbasedata.com/sunbase/portal/api/assignment.jsp?cmd=delete&uuid=${customerUuid}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${bearerToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 200) {
+            managementMessage.innerText = 'Customer Successfully Deleted';
+            managementMessage.style.color = 'green';
+        } else if (response.status === 400) {
+            throw new Error('UUID not found');
+        } else if (response.status === 401) {
+            throw new Error('Invalid Authorization');
+        } else {
+            throw new Error('Failed to delete customer');
+        }
+    })
+    .catch(error => {
+        console.error(error);
+        managementMessage.innerText = error.message;
+        managementMessage.style.color = 'red';
+    });
+        }
+    </script>
+</body>
+</html>
